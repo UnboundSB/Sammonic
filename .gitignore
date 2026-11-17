@@ -1,0 +1,58 @@
+# ---- Story content (never commit) ----
+script.txt
+hypnosis_script.txt
+dataset/raw/
+dataset/train.jsonl
+dataset/val.jsonl
+dataset/rejected/
+
+# ---- Generated audio / reference media ----
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.ogg
+*.aac
+
+# ---- Logs ----
+*.log
+generation.log
+
+# ---- Python env / caches ----
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# ---- Node (Lit frontend) ----
+node_modules/
+dist/
+.vite/
+
+# ---- Rust / Tauri (future shell) ----
+target/
+src-tauri/target/
+
+# ---- Build artifacts -*
+build/
+*.o
+*.obj
+*.dll
+*.exe
+*.pdb
+cmake-build-*/
+
+# ---- Model checkpoints / training output ----
+*.safetensors
+*.bin
+adapters/
+output_model/
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
