@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    /*
+      Lit's @property/@state typing declares three call shapes (standard
+      accessor, setter, and legacy prototype/descriptor); TypeScript 5.6's
+      standard-decorator checker fails to match any of them for decorated
+      fields, so the legacy emit path is used. Lit's runtime decorators accept
+      both call shapes by design, and `noImplicitOverride` keeps the class
+      members honest.
+    */
+    "experimentalDecorators": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src", "vite.config.ts"]
+}

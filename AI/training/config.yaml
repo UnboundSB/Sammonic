@@ -1,0 +1,102 @@
+# QLoRA configuration for the Sammonic script-writer.
+#
+# Sized for an RTX 3050 Laptop with 6 GB of VRAM. Every value here is a
+# compromise between the 6 GB budget and how much of the format contract the
+# model has to learn; comments record why, so the next person does not have to
+# re-derive them.
+
+# --- model ---------------------------------------------------------------
+# Qwen3-4B-Instruct-2507 is the default: newer writing quality than the 2.5
+# generation and still small enough for 6 GB QLoRA. If it will not fit, or its
+# output is worse on held-out samples, swap this one key to the fallback and
+# re-run. No code change required.
+base_model: "Qwen/Qwen3-4B-Instruct-2507"
+fallback_model: "Qwen/Qwen2.5-3B-Instruct"
+
+# --- dataset -------------------------------------------------------------
+dataset_dir: "dataset"
+train_file: "train.jsonl"
+val_file: "val.jsonl"
+
+# Refuse to train below this many accepted scripts. The point is not the
+# token count, it is that a single script would be memorized rather than
+# generalized: keep this honest even though it is tempting to lower it.
+min_scripts: 30
+min_samples: 50
+
+# Random seed for the split. Fixed so a rebuild is reproducible and a
+# diff between two runs is a real difference in data, not a reshuffle.
+seed: 42
+
+# --- token budget --------------------------------------------------------
+# 2048 matches the section-split samples in build_dataset.py (sections of
+# about 5.5k characters). Longer sequences cost VRAM quadratically through
+# attention, which is the binding constraint on a 6 GB card.
+max_seq_length: 2048
+
+# --- quantization (bitsandbytes) -----------------------------------------
+load_in_4bit: true
+bnb_4bit_quant_type: "nf4"        # normalized float: better than fp4 at these sizes
+bnb_4bit_use_double_quant: true   # second quantization of the scale factors, ~0.4 bits/param saved
+bnb_4bit_compute_dtype: "bfloat16"
+
+# --- LoRA ----------------------------------------------------------------
+# r=16 / alpha=32: enough capacity to absorb the format contract and a
+# recognizable voice, while keeping the adapter small enough to keep in git
+# and swap quickly. Larger r buys quality the dataset cannot yet justify.
+lora_r: 32
+lora_alpha: 64
+lora_dropout: 0.05
+
+# Attention projections plus MLP. Attending to a new format is not enough;
+# the MLP carries most of the stylistic signal in an instruct model.
+lora_target_modules:
+  - "q_proj"
+  - "k_proj"
+  - "v_proj"
+  - "o_proj"
+  - "gate_proj"
+  - "up_proj"
+  - "down_proj"
+
+# --- optimizer -----------------------------------------------------------
+# AdamW with paged 8-bit state. The optimizer states are the largest consumer
+# after the weights themselves; paging them keeps a spike from OOMing the
+# job part-way through an epoch.
+optim: "paged_adamw_8bit"
+learning_rate: 1.0e-4
+lr_scheduler_type: "cosine"
+warmup_ratio: 0.03
+weight_decay: 0.01
+num_train_epochs: 2
+max_grad_norm: 1.0
+
+# micro-batch 1 with 16 steps of accumulation gives an effective batch of 16:
+# the largest batch that fits at this sequence length without OOM.
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 16
+
+# Trades compute for activation memory. At 2048 tokens on a 4B model this is
+# the difference between fitting and not.
+gradient_checkpointing: true
+
+# --- logging / checkpointing --------------------------------------------
+logging_steps: 5
+save_strategy: "epoch"
+output_dir: "AI/model/adapters"
+run_name: ""                    # blank = generated from timestamp
+events_file: "AI/training/events.jsonl"
+
+# bf16 on Ampere+; set false if the GPU is pre-Ampere or bf16 behaves badly.
+bf16: true
+
+# Completion-only loss: the system and user turns are masked in the labels, so
+# the model only learns to write the assistant turn. Training on the
+# instruction as well teaches it to re-emit instructions, which it is never
+# asked to do at inference time.
+train_on_completions_only: true
+
+# Qwen instruct response markers. Everything before response_marker is
+# masked; these are the delimiters the chat template emits for this family.
+instruction_template: "user"
+response_template: "assistant"

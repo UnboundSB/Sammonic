@@ -58,8 +58,14 @@ private:
     // Find piece index containing absolute pos, and offset within it.
     // Returns index; out_offset set to chars before pos inside that piece.
     size_t locate(size_t pos, size_t& out_offset) const;
+    // Index of the piece whose left boundary sits at pos (pieces_.size() when
+    // pos == length_). Requires a split_at(pos) boundary and the invariant
+    // sum(piece lengths) == length_.
+    size_t boundary_index(size_t pos) const;
     // Split piece so that an edit boundary lands at pos. No-op if already boundary.
     void split_at(size_t pos);
+    // Append text to the ADD buffer and place a piece at boundary pos.
+    void place_add(size_t pos, const std::string& text);
     // Rebuild piece list between two boundaries (used by erase).
     void erase_range(size_t start, size_t end);
 };

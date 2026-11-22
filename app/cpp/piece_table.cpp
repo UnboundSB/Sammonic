@@ -43,20 +43,15 @@ void PieceTable::split_at(size_t pos) {
     pieces_.insert(pieces_.begin() + static_cast<long>(idx) + 1, right);
 }
 
-void PieceTable::insert(size_t pos, const std::string& text) {
-    if (text.empty()) return;
-    if (pos > length_) pos = length_;
-
-    split_at(pos);
-    size_t off = 0;
-    size_t idx = locate(pos, off);
-    // off > 0 only when pos == length_ (insert at very end)
-    size_t ins_idx = (off == 0) ? idx : idx + 1;
-
+// Append text to the ADD buffer and place a piece at boundary `pos`.
+// pos must be a piece boundary (call split_at first, or pos == length_).
+// Coalesces with the preceding ADD piece when they touch in the buffer,
+// which is what keeps rapid typing from growing the piece list.
+void PieceTable::place_add(size_t pos, const std::string& text) {
     size_t add_start = add_.size();
     add_.append(text);
 
-    // Coalesce with the preceding ADD piece (rapid-typing hot path)
+    size_t ins_idx = boundary_index(pos);
     if (ins_idx > 0 && pieces_[ins_idx - 1].buf == ADD &&
         pieces_[ins_idx - 1].start + pieces_[ins_idx - 1].length == add_start) {
         pieces_[ins_idx - 1].length += text.size();
@@ -64,12 +59,34 @@ void PieceTable::insert(size_t pos, const std::string& text) {
         pieces_.insert(pieces_.begin() + static_cast<long>(ins_idx),
                        Piece{ADD, add_start, text.size()});
     }
-
     length_ += text.size();
+}
+
+void PieceTable::insert(size_t pos, const std::string& text) {
+    if (text.empty()) return;
+    if (pos > length_) pos = length_;
+
+    split_at(pos);
+    place_add(pos, text);
 
     EditOp op{pos, 0, text};
     undo_stack_.push_back(op);
     redo_stack_.clear();
+}
+
+// Invariant: sum(pieces[i].length) == length_ at all times.
+// erase_range relies on it: boundaries must be piece starts, and an erase that
+// reaches end-of-document must drop the trailing piece too (not just the ones
+// before it), which locate(end) alone cannot express.
+
+size_t PieceTable::boundary_index(size_t pos) const {
+    if (pos >= length_) return pieces_.size();
+    size_t acc = 0;
+    for (size_t i = 0; i < pieces_.size(); ++i) {
+        if (acc == pos) return i;
+        acc += pieces_[i].length;
+    }
+    return pieces_.size();
 }
 
 void PieceTable::erase_range(size_t start, size_t end) {
@@ -79,12 +96,13 @@ void PieceTable::erase_range(size_t start, size_t end) {
     split_at(start);
     split_at(end);
 
-    size_t off_s = 0, off_e = 0;
-    size_t i0 = locate(start, off_s);
-    size_t i1 = locate(end, off_e);
+    size_t i0 = boundary_index(start);
+    size_t i1 = boundary_index(end);
 
-    pieces_.erase(pieces_.begin() + static_cast<long>(i0),
-                  pieces_.begin() + static_cast<long>(i1));
+    if (i1 > i0) {
+        pieces_.erase(pieces_.begin() + static_cast<long>(i0),
+                      pieces_.begin() + static_cast<long>(i1));
+    }
     length_ -= (end - start);
 }
 
@@ -146,20 +164,8 @@ bool PieceTable::undo() {
         redo_stack_.push_back(op); // forward op, ready to replay
     } else {
         // forward was erase -> apply re-insertion of removed text
-        size_t add_start = add_.size();
-        add_.append(op.text);
         split_at(op.pos);
-        size_t off = 0;
-        size_t idx = locate(op.pos, off);
-        size_t ins_idx = (off == 0) ? idx : idx + 1;
-        if (ins_idx > 0 && pieces_[ins_idx - 1].buf == ADD &&
-            pieces_[ins_idx - 1].start + pieces_[ins_idx - 1].length == add_start) {
-            pieces_[ins_idx - 1].length += op.text.size();
-        } else {
-            pieces_.insert(pieces_.begin() + static_cast<long>(ins_idx),
-                           Piece{ADD, add_start, op.text.size()});
-        }
-        length_ += op.text.size();
+        place_add(op.pos, op.text);
         redo_stack_.push_back(op);
     }
     return true;
@@ -172,20 +178,8 @@ bool PieceTable::redo() {
 
     if (op.old_len == 0) {
         // re-apply insert
-        size_t add_start = add_.size();
-        add_.append(op.text);
         split_at(op.pos);
-        size_t off = 0;
-        size_t idx = locate(op.pos, off);
-        size_t ins_idx = (off == 0) ? idx : idx + 1;
-        if (ins_idx > 0 && pieces_[ins_idx - 1].buf == ADD &&
-            pieces_[ins_idx - 1].start + pieces_[ins_idx - 1].length == add_start) {
-            pieces_[ins_idx - 1].length += op.text.size();
-        } else {
-            pieces_.insert(pieces_.begin() + static_cast<long>(ins_idx),
-                           Piece{ADD, add_start, op.text.size()});
-        }
-        length_ += op.text.size();
+        place_add(op.pos, op.text);
     } else {
         // re-apply erase
         erase_range(op.pos, op.pos + op.old_len);

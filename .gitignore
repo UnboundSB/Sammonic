@@ -50,6 +50,10 @@ cmake-build-*/
 adapters/
 output_model/
 
+# ---- Sidecar runtime output ----
+AI/logs/
+AI/training/events.jsonl
+
 # ---- OS / editor ----
 .DS_Store
 Thumbs.db

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Sammonic frontend shell. Tooling UI only: no story content ships with
+      this page, and every string in it is generic placeholder text.
+    -->
+    <title>Sammonic — session toolkit</title>
+    <style>
+      /* Paint the page background before the bundle loads so there is no
+         white flash; the real theme lives in the components' shadow CSS. */
+      html { background: #14161a; color: #e6e8ec; }
+      body { margin: 0; font-family: system-ui, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <hypno-app></hypno-app>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
