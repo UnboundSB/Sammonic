@@ -118,11 +118,17 @@ AI/                    sidecar, dataset pipeline, training, model
 - C++17 compiler and CMake (for the piece-table core)
 - Node + npm (only for the Lit frontend)
 
-**Install the training stack in a virtualenv, not globally.** Installing `peft`
-/`accelerate`/`datasets` globally on this machine downgraded `pydantic-core`,
-`python-dotenv`, `rich`, `typer` and `protobuf`, which `aider-chat` and
-`streamlit` depend on. Sammonic's sidecar, linter, and verification suite are
-stdlib-only and need none of this — only the training scripts do.
+**Install the training stack in a virtualenv if you can.** Installing
+`peft`/`accelerate`/`datasets` globally shifted several versions that
+`aider-chat` and `streamlit` pin, so `pip check` now reports conflicts. Both
+tools still run (verified), but the global environment is fragile and it is not
+Sammonic's business what else it breaks. Sammonic's sidecar, linter, and
+verification suite are stdlib-only and need none of this — only the training
+scripts do:
+
+```
+python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt
+```
 
 ## Can this machine train?
 

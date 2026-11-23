@@ -1,14 +1,15 @@
 # Sammonic dependencies.
 #
-# Installed globally, these versions collide with aider-chat and streamlit (see
-# the note in README.md). The clean fix is a virtualenv:
+# Prefer a virtualenv. Installing the training stack globally shifts versions
+# that aider-chat and streamlit pin (pip check reports the conflicts, though
+# both tools still run), and Sammonic has no business breaking them.
 #
 #   python -m venv .venv
 #   .venv\Scripts\activate
 #   pip install -r requirements.txt
 #
-# The sidecar and the verification suite do NOT need the heavy stack: they are
-# stdlib-only and run on a bare Python 3.11.
+# The sidecar, the linter, and the verification suite are stdlib-only and run
+# on a bare Python 3.11 -- they need none of the training stack.
 
 # --- generation (needed by generate.py) ---
 torch==2.6.0+cu124
