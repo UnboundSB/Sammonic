@@ -398,13 +398,29 @@ def route_generate(payload):
         raise HttpError(400, f"reference audio duration unreadable: "
                              f"{probe.stderr.strip()}") from exc
 
+    # Output paths default to the project root, but a caller may redirect them.
+    # Without this, rendering a variant silently overwrites the session the
+    # user just spent an hour producing.
+    out_wav = (payload or {}).get("out_wav")
+    out_mp3 = (payload or {}).get("out_mp3")
+
+    def _resolve_output(value):
+        path = Path(value)
+        return path if path.is_absolute() else (ROOT / path).resolve()
+
     argv = [
         sys.executable, str(GEN_SCRIPT),
         "--script", str(script_path),
         "--reference", str(ref_path),
     ]
+    if out_wav:
+        argv += ["--out-wav", str(_resolve_output(out_wav))]
+    if out_mp3:
+        argv += ["--out-mp3", str(_resolve_output(out_mp3))]
+
     job = _start_job("generate", argv, ROOT,
-                     {"script": str(script_path), "reference": str(ref_path)}, needs_gpu=True)
+                     {"script": str(script_path), "reference": str(ref_path),
+                      "out_mp3": str(out_mp3) if out_mp3 else None}, needs_gpu=True)
     return {"job": job.id, "script": str(script_path), "reference": str(ref_path)}
 
 

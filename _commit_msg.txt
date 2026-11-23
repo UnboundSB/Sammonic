@@ -1,0 +1,21 @@
+Verify the full TTS path through the sidecar; fix byte/char wording
+
+The one seam nothing had exercised was a real render driven through the
+sidecar rather than direct. AI/integration_generate.py closes it: it started
+a 52-chunk job as a child process, watched every chunk progress from 0 to
+100% through the server's log parser, and confirmed the parsed @@RESULT
+duration (1417.29 s) against ffprobe (1417.289708 s). 16.6 minutes wall
+clock.
+
+Two things surfaced while building it:
+
+- /generate hardcoded output.wav/output.mp3, so rendering a variant would
+  have overwritten the approved session. It now accepts out_wav/out_mp3, and
+  the integration test writes to a scratch path and asserts the real
+  output.mp3 survived.
+- piece_table.h called its offsets "chars". std::string addresses bytes, and
+  a false claim in a header is how someone writes a UTF-8 bug later. The
+  header now says bytes; engine and ABI suites rebuilt and still pass.
+
+README and architecture.md updated to distinguish verified from unverified,
+and the integration test is documented as the slow companion to verify.py.

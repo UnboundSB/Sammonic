@@ -169,7 +169,8 @@ D:\hypno maker\
 ├── AI/
 │   ├── sidecar_server.py    HTTP service: /lint, /dataset, /train,
 │   │                        /generate, /edit, /status, /jobs
-│   ├── selftest_sidecar.py  end-to-end self-test (run against a live server)
+│   ├── selftest_sidecar.py      end-to-end self-test (run against a live server)
+│   ├── integration_generate.py  real TTS render driven through the sidecar
 │   ├── piecetable_client.py ctypes bridge to libpiecetable.dll
 │   ├── datapipeline/
 │   │   ├── build_dataset.py     linter + SFT JSONL builder
@@ -377,12 +378,17 @@ Every claim in the table above was checked by running it, not by inspection:
   DLL). `AI/selftest_sidecar.py` runs the whole surface against a live server.
 - `build_dataset.py` and `generate.py` both still work after being moved and
   refactored; `generate.py` was smoke-tested end to end (two chunks to MP3).
+- **A full 52-chunk session was rendered through the sidecar**, child process
+  and all: `AI/integration_generate.py` started the job, watched every chunk
+  progress from 0 to 100% through the server's log parser, and confirmed the
+  parsed `@@RESULT` duration (1417.29 s) against `ffprobe` (1417.289708 s).
+  16.6 minutes wall clock, and the project's existing `output.mp3` was left
+  untouched because the job writes to a scratch path.
 - The frontend compiles and builds with strict TypeScript.
 
-Not verified, and why: a real QLoRA run (needs peft/trl/bitsandbytes and a GPU
-session long enough to watch it), a full TTS run through the sidecar (takes
-~20 minutes of GPU), and anything in a browser that has not been driven by an
-automation tool.
+Not verified, and why: a real QLoRA run (needs peft/bitsandbytes/accelerate and
+a GPU session long enough to watch it), and anything in a browser that has not
+been driven by an automation tool.
 
 ---
 

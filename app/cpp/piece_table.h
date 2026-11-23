@@ -10,15 +10,18 @@ namespace hypo {
 
 enum Buffer : uint8_t { ORIG = 0, ADD = 1 };
 
+// All offsets and lengths are BYTE offsets into the UTF-8 document. std::string
+// addresses bytes; calling them "chars" invites a UTF-8 bug, so this header
+// does not.
 struct Piece {
     Buffer buf;
-    size_t start;   // offset into that buffer
-    size_t length;  // chars in this piece
+    size_t start;   // byte offset into that buffer
+    size_t length;  // bytes in this piece
 };
 
 struct EditOp {
-    size_t pos;     // absolute doc position
-    size_t old_len; // chars removed (0 for pure insert)
+    size_t pos;     // absolute byte position
+    size_t old_len; // bytes removed (0 for pure insert)
     std::string text; // text inserted ("" for pure delete)
 };
 

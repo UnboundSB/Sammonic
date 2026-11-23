@@ -121,17 +121,25 @@ AI/                    sidecar, dataset pipeline, training, model
 ## Verify it works
 
 ```
-python verify.py
+python verify.py                      # fast: syntax, C++ tests, sidecar self-test
+python AI/integration_generate.py     # slow: real TTS render through the sidecar
 ```
 
-Runs Python syntax checks, both C++ test binaries (building them if needed), and
-the full sidecar self-test against a live server on a scratch port. It
-deliberately does *not* run a TTS render or a training run.
+`verify.py` runs Python syntax checks, both C++ test binaries (building them if
+needed), and the full sidecar self-test against a live server on a scratch port.
+It deliberately does *not* run a TTS render or a training run.
+
+`integration_generate.py` exercises the one seam the fast tests cannot: it starts
+a real job through the sidecar and confirms the parsed `@@RESULT` duration
+against `ffprobe`. It writes to `AI/logs/`, never the project's `output.mp3`.
 
 ## Status
 
 Working and verified: TTS pipeline, linter, dataset builder, piece-table core
-and ABI, ctypes bridge, sidecar service, and the Lit frontend. Datasets and the
-Tauri shell are the two open items: the first needs 30+ scripts to clear its
-gate, and the second needs a Rust toolchain (none is installed on the target
-machine).
+and ABI, ctypes bridge, sidecar service, and the Lit frontend. A full session has
+been rendered end to end *through* the sidecar, so every layer between a
+click and an MP3 has been executed at least once.
+
+Still open: a real QLoRA run (needs `peft`, `bitsandbytes`, `accelerate`), enough
+scripts to clear the 30-script training gate, browser automation for the frontend,
+and the Tauri shell (no Rust toolchain is installed on the target machine).
