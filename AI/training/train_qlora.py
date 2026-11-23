@@ -350,6 +350,10 @@ def train(config_path, resume=None):
                                      "gate_proj", "up_proj", "down_proj"])),
     )
     model = get_peft_model(model, lora)
+    # The trainable-parameter report is the cheapest way to see that the LoRA
+    # adapters are actually attached. Without it a mis-typed target_modules
+    # silently trains nothing, or trains the entire frozen base.
+    model.print_trainable_parameters()
 
     # ---- data ---------------------------------------------------------
     ds = Dataset.from_list(train_rows).train_test_split(
@@ -437,6 +441,21 @@ def train(config_path, resume=None):
     train_ds = train_ds.map(tokenize_and_mask)
     if val_path.exists():
         val_ds = val_ds.map(tokenize_and_mask)
+
+    # Drop the raw text columns. The collator pads whatever columns remain, and a
+    # list-of-dicts column cannot become a tensor -- it would fail deep inside
+    # tokenizer.pad with a complaint about "excessive nesting" rather than
+    # anything pointing at this line.
+    drop_cols = [c for c in ("messages", "source", "part")
+                 if c in train_ds.column_names]
+    if drop_cols:
+        train_ds = train_ds.remove_columns(drop_cols)
+    if val_path.exists():
+        vdrop = [c for c in ("messages", "source", "part")
+                 if c in val_ds.column_names]
+        if vdrop:
+            val_ds = val_ds.remove_columns(vdrop)
+    note(f"training columns: {train_ds.column_names}")
 
     collator = DataCollatorForSeq2Seq(
         tokenizer, padding=True, pad_to_multiple_of=8,
