@@ -118,6 +118,20 @@ AI/                    sidecar, dataset pipeline, training, model
 - C++17 compiler and CMake (for the piece-table core)
 - Node + npm (only for the Lit frontend)
 
+**Install the training stack in a virtualenv, not globally.** Installing `peft`
+/`accelerate`/`datasets` globally on this machine downgraded `pydantic-core`,
+`python-dotenv`, `rich`, `typer` and `protobuf`, which `aider-chat` and
+`streamlit` depend on. Sammonic's sidecar, linter, and verification suite are
+stdlib-only and need none of this — only the training scripts do.
+
+## Can this machine train?
+
+`python AI/check_4bit.py` answers it by actually running a 4-bit layer forward
+and backward on your GPU. It reports peak VRAM, so the 6 GB budget is judged
+against measurement rather than assumption. On the RTX 3050 Laptop it passes:
+bitsandbytes 0.50.2's CUDA kernels do work on Windows, and one 4-bit layer costs
+~0.04 GB.
+
 ## Verify it works
 
 ```

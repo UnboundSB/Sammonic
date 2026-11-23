@@ -1,0 +1,30 @@
+Prove 4-bit training works on this machine; add trainer smoke test
+
+Two questions were open and neither had been tested: can this Windows box
+actually run 4-bit training, and does the trainer still work after the
+bitsandbytes 0.50 API change?
+
+AI/check_4bit.py answers the first by doing it, not by checking imports.
+bitsandbytes installs on Windows but its CUDA kernels historically do not work
+there, and that only surfaces when a 4-bit layer actually runs. It quantizes a
+real Linear4bit to NF4 with compression statistics and runs forward AND
+backward, reports peak VRAM, and checks the base model is reachable. Result
+on the RTX 3050 Laptop: PASS, peak 0.039 GB, so Docker is not needed.
+
+AI/smoke_train.py answers the second by running the real trainer over the real
+code path against a 135M instruct model and a tiny dataset, then asserting an
+adapter was written and a loss went down. It never touches dataset/ or the
+project adapters.
+
+Two API notes captured because they cost time to rediscover:
+- Linear4bit renamed double_quant to compress_statistics in bnb 0.50, and
+  changed the default quant_type from nf4 to fp4. check_4bit.py detects which
+  spelling to use rather than assuming one, so a capability probe cannot fail
+  on a keyword.
+- Qwen3-4B-Instruct-2507 is 36 layers, hidden 2560 -- not the 4B-in-name the
+  assumption implied.
+
+requirements.txt documents the training stack with the note that installing it
+globally breaks aider-chat and streamlit (pydantic-core, python-dotenv, rich,
+typer, protobuf), and README.md now says to use a virtualenv and points at
+check_4bit.py for the capability question.

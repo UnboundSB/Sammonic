@@ -1,0 +1,39 @@
+# Sammonic dependencies.
+#
+# Installed globally, these versions collide with aider-chat and streamlit (see
+# the note in README.md). The clean fix is a virtualenv:
+#
+#   python -m venv .venv
+#   .venv\Scripts\activate
+#   pip install -r requirements.txt
+#
+# The sidecar and the verification suite do NOT need the heavy stack: they are
+# stdlib-only and run on a bare Python 3.11.
+
+# --- generation (needed by generate.py) ---
+torch==2.6.0+cu124
+torchaudio==2.6.0+cu124
+chatterbox-tts>=0.1.7
+pyloudnorm>=0.1.1
+numpy>=1.26,<2.0
+
+# --- shared (dataset pipeline, config) ---
+PyYAML>=6.0
+
+# --- training (AI/training/train_qlora.py) ---
+# These are what `python AI/check_4bit.py` verifies.
+peft>=0.14
+accelerate>=0.34
+datasets>=3.0
+bitsandbytes>=0.50
+transformers>=5.6
+
+# --- notes ---
+# bitsandbytes 0.50 renamed Linear4bit's `double_quant` to
+# `compress_statistics`, and changed the default quant_type from nf4 to fp4.
+# BitsAndBytesConfig still accepts bnb_4bit_use_double_quant, so
+# train_qlora.py is unaffected, but anything constructing Linear4bit directly
+# must handle both spellings (AI/check_4bit.py does).
+#
+# PEFT warns on transformers < 5.6; the installed 5.2.0 still works, so
+# upgrading transformers is optional but removes the warning.
