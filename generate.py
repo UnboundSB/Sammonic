@@ -30,6 +30,29 @@ def emit_progress(i, total, chars, secs):
     print("@@PROGRESS " + json.dumps(
         {"i": i, "total": total, "chars": chars, "secs": round(secs, 2)}), flush=True)
 
+
+def review(chunks_text, script):
+    """Print the script that is about to be rendered, in the order it will be
+    spoken, before any GPU work happens.
+
+    A render takes about twenty minutes of GPU. Reading the text first costs
+    nothing, and catching a wrong or stale script here is the difference
+    between a review and a wasted hour. This is why it runs before the model
+    is loaded rather than after.
+    """
+    sizes = [len(c) for c in chunks_text]
+    print("\n" + "=" * 70)
+    print(f"SCRIPT TO BE RENDERED: {script}")
+    print(f"{len(chunks_text)} chunks | {sum(sizes)} chars | "
+          f"chunk range {min(sizes)}-{max(sizes)}")
+    print("=" * 70)
+    for i, chunk in enumerate(chunks_text, 1):
+        print(f"\n[chunk {i}/{len(chunks_text)}] ({len(chunk)} chars)")
+        print(chunk)
+    print("\n" + "=" * 70)
+    print("END OF SCRIPT -- generation starts after this point.")
+    print("=" * 70 + "\n", flush=True)
+
 def emit_result(path, secs):
     print("@@RESULT " + json.dumps({"mp3": path, "duration": round(secs, 2)}), flush=True)
 
@@ -60,25 +83,39 @@ def peak_guard(wav, ceiling=0.95):
         wav = wav * (ceiling / peak)
     return wav
 
-def load_paths():
-    """Resolve inputs/outputs, honouring CLI overrides. The sidecar passes
-    explicit paths; interactive runs get the project-root defaults."""
-    script, ref, out_wav, out_mp3 = SCRIPT, REF_AUDIO, OUT_WAV, OUT_MP3
+def load_options():
+    """Resolve CLI options: paths plus the review/preview switches.
+
+    Argparse would normally do this, but the existing hand-rolled parsing is
+    what the sidecar already calls with explicit --script/--reference, and
+    switching parsers is a change the working audio path does not need.
+    """
+    opts = {
+        "script": SCRIPT, "reference": REF_AUDIO,
+        "out_wav": OUT_WAV, "out_mp3": OUT_MP3,
+        "preview": False, "quiet": False,
+    }
     argv = sys.argv[1:]
-    for i in range(0, len(argv) - 1, 2):
-        flag, value = argv[i], argv[i + 1]
-        if flag == "--script":
-            script = os.path.abspath(value)
-        elif flag == "--reference":
-            ref = os.path.abspath(value)
-        elif flag == "--out-wav":
-            out_wav = os.path.abspath(value)
-        elif flag == "--out-mp3":
-            out_mp3 = os.path.abspath(value)
-    return script, ref, out_wav, out_mp3
+    i = 0
+    while i < len(argv):
+        flag = argv[i]
+        if flag == "--preview":
+            opts["preview"] = True
+        elif flag == "--quiet":
+            opts["quiet"] = True
+        elif flag.startswith("--") and i + 1 < len(argv):
+            value = argv[i + 1]
+            key = flag[2:].replace("-", "_")
+            if key in ("script", "reference", "out_wav", "out_mp3"):
+                opts[key] = os.path.abspath(value)
+            i += 1
+        i += 1
+    return opts
 
 def main():
-    script, ref, out_wav, out_mp3 = load_paths()
+    opts = load_options()
+    script, ref = opts["script"], opts["reference"]
+    out_wav, out_mp3 = opts["out_wav"], opts["out_mp3"]
 
     # ---- Load script as chunks ----
     with open(script, encoding="utf-8") as f:
@@ -88,6 +125,13 @@ def main():
         log(f"ERROR: {script} is empty.")
         sys.exit(1)
     log(f"Loaded {len(chunks_text)} chunks from {script} ({len(text)} chars)")
+
+    # ---- Show what is about to be rendered, before touching the GPU ----
+    if not opts["quiet"]:
+        review(chunks_text, script)
+    if opts["preview"]:
+        log("--preview given: script printed, no audio generated.")
+        return
 
     # ---- Load model once ----
     log("Loading Chatterbox Turbo model...")
